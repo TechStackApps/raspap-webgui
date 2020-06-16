@@ -3,6 +3,7 @@
 require_once 'status_messages.php';
 require_once $_SERVER['DOCUMENT_ROOT'].'/app/lib/system.php';
 require_once 'config.php';
+require_once 'functions.php';
 
 function GetServiceStatus() {
     $system = new System();
@@ -68,7 +69,7 @@ function GetHostAPDParameter()
 
     if (!RASPI_MONITOR_ENABLED) {
         if (isset($_POST['SaveHostAPDSettings'])) {
-            SaveHostAPDConfig($arrSecurity, $arrEncType, $arr80211Standard, $interfaces, $status);
+            SaveHostAPDConfig($interfaces, $status);
         }
     }
 
@@ -123,8 +124,17 @@ function DisplayHostAPDConfig()
     echo renderTemplate("hostapd", GetHostAPDParameter());
 }
 
-function SaveHostAPDConfig($wpa_array, $enc_types, $modes, $interfaces, $status)
+function SaveHostAPDConfig($interfaces, $status)
 {
+    $modes = [
+        'a' => '802.11a - 5 GHz',
+        'b' => '802.11b - 2.4 GHz',
+        'g' => '802.11g - 2.4 GHz',
+        'n' => '802.11n - 2.4 GHz',
+        'ac' => '802.11.ac - 5 GHz'
+    ];
+    $wpa_array = array(1 => 'WPA', 2 => 'WPA2', 3 => 'WPA+WPA2', 'none' => _("None"));
+    $enc_types = array('TKIP' => 'TKIP', 'CCMP' => 'CCMP', 'TKIP CCMP' => 'TKIP+CCMP');
     // It should not be possible to send bad data for these fields so clearly
     // someone is up to something if they fail. Fail silently.
     if (!(array_key_exists($_POST['wpa'], $wpa_array) 

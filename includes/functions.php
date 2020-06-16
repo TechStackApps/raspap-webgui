@@ -1,6 +1,6 @@
 <?php
 /* Functions for Networking */
-require 'status_messages.php'; //for getAdblockConfig
+require_once 'status_messages.php'; //for getAdblockConfig
 
 function mask2cidr($mask)
 {
