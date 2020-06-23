@@ -1,14 +1,20 @@
 <?php
 
-require_once 'includes/status_messages.php';
+require_once 'status_messages.php';
 require_once 'config.php';
+
+function getDhcpStatus()
+{
+    exec('pidof dnsmasq | wc -l', $dnsmasq);
+    $dnsmasq_state = $dnsmasq[0] > 0;
+    return $dnsmasq_state;
+}
 
 /**
  * Manage DHCP configuration
  */
 function DisplayDHCPConfig()
 {
-
     $status = new StatusMessages();
     if (!RASPI_MONITOR_ENABLED) {
         if (isset($_POST['savedhcpdsettings'])) {
@@ -97,7 +103,7 @@ function DisplayDHCPConfig()
     }
 
     exec('pidof dnsmasq | wc -l', $dnsmasq);
-    $dnsmasq_state = ($dnsmasq[0] > 0);
+    $dnsmasq_state = getDhcpStatus();
 
     if (!RASPI_MONITOR_ENABLED) {
         if (isset($_POST['startdhcpd'])) {
