@@ -1,4 +1,3 @@
-<?php
-require_once '../../includes/dhcp.php';
+echo renderTemplate(
 
-echo json_encode(getDhcpStatus());
+echo json_encode(GetDhcpStatus());

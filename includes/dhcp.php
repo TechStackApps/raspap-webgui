@@ -1,19 +1,16 @@
 <?php
-
 require_once 'status_messages.php';
 require_once 'config.php';
+require_once 'functions.php';
 
-function getDhcpStatus()
+function GetDhcpStatus()
 {
     exec('pidof dnsmasq | wc -l', $dnsmasq);
     $dnsmasq_state = $dnsmasq[0] > 0;
     return $dnsmasq_state;
 }
 
-/**
- * Manage DHCP configuration
- */
-function DisplayDHCPConfig()
+function GetDhcpConfig()
 {
     $status = new StatusMessages();
     if (!RASPI_MONITOR_ENABLED) {
@@ -148,6 +145,7 @@ function DisplayDHCPConfig()
     $upstreamServers = is_array($conf['server']) ? $conf['server'] : [ $conf['server'] ];
     $upstreamServers = array_filter($upstreamServers);
 
+    
     $DNS1 = '';
     $DNS2 = '';
     if (isset($conf['dhcp-option'])) {
@@ -185,9 +183,8 @@ function DisplayDHCPConfig()
 
     exec("ip -o link show | awk -F': ' '{print $2}'", $interfaces);
     exec('cat ' . RASPI_DNSMASQ_LEASES, $leases);
-
-    echo renderTemplate(
-        "dhcp", compact(
+    
+        return compact(
             "status",
             "serviceStatus",
             "RangeStart",
@@ -205,6 +202,13 @@ function DisplayDHCPConfig()
             "dhcpHost",
             "interfaces",
             "leases"
-        )
-    );
+        );
+}
+
+/**
+ * Manage DHCP configuration
+ */
+function DisplayDHCPConfig()
+{
+    echo renderTemplate("dhcp", GetDhcpConfig());
 }
