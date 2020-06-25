@@ -10,6 +10,38 @@ function GetDhcpStatus()
     return $dnsmasq_state;
 }
 
+function StartDhcp($status)
+{
+    $dnsmasq_state = getDhcpStatus();
+    if ($dnsmasq_state) {
+        $status->addMessage('dnsmasq already running', 'info');
+    } else {
+        exec('sudo /bin/systemctl start dnsmasq.service', $dnsmasq, $return);
+        if ($return == 0) {
+            $status->addMessage('Successfully started dnsmasq', 'success');
+            $dnsmasq_state = true;
+        } else {
+            $status->addMessage('Failed to start dnsmasq', 'danger');
+        }
+    }
+}
+
+function StopDhcp($status)
+{
+    $dnsmasq_state = getDhcpStatus();
+    if ($dnsmasq_state) {
+        exec('sudo /bin/systemctl stop dnsmasq.service', $dnsmasq, $return);
+        if ($return == 0) {
+            $status->addMessage('Successfully stopped dnsmasq', 'success');
+            $dnsmasq_state = false;
+        } else {
+            $status->addMessage('Failed to stop dnsmasq', 'danger');
+        }
+    } else {
+        $status->addMessage('dnsmasq already stopped', 'info');
+    }
+}
+
 function GetDhcpConfig()
 {
     $status = new StatusMessages();
@@ -24,29 +56,9 @@ function GetDhcpConfig()
 
     if (!RASPI_MONITOR_ENABLED) {
         if (isset($_POST['startdhcpd'])) {
-            if ($dnsmasq_state) {
-                $status->addMessage('dnsmasq already running', 'info');
-            } else {
-                exec('sudo /bin/systemctl start dnsmasq.service', $dnsmasq, $return);
-                if ($return == 0) {
-                    $status->addMessage('Successfully started dnsmasq', 'success');
-                    $dnsmasq_state = true;
-                } else {
-                    $status->addMessage('Failed to start dnsmasq', 'danger');
-                }
-            }
+            StartDhcp($status);
         } elseif (isset($_POST['stopdhcpd'])) {
-            if ($dnsmasq_state) {
-                exec('sudo /bin/systemctl stop dnsmasq.service', $dnsmasq, $return);
-                if ($return == 0) {
-                    $status->addMessage('Successfully stopped dnsmasq', 'success');
-                    $dnsmasq_state = false;
-                } else {
-                    $status->addMessage('Failed to stop dnsmasq', 'danger');
-                }
-            } else {
-                $status->addMessage('dnsmasq already stopped', 'info');
-            }
+            StopDhcp($status);
         }
     }
 
