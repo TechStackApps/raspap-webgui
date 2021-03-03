@@ -1,18 +1,60 @@
 <?php
 
-require_once 'includes/status_messages.php';
-require_once 'app/lib/system.php';
+require_once 'status_messages.php';
+require_once $_SERVER['DOCUMENT_ROOT'].'/app/lib/system.php';
 require_once 'config.php';
+require_once 'functions.php';
 
-/**
- *
- *
- */
-function DisplayHostAPDConfig()
+function GetServiceStatus() {
+    $system = new System();
+    $hostapdstatus = $system->hostapdStatus();
+    return $hostapdstatus[0] == 0 ? "down" : "up";
+}
+function GetHostApdConfig() 
+{
+    $hostapdconfig =  parse_ini_file('/etc/raspap/hostapd.ini');
+    exec('cat '. RASPI_HOSTAPD_CONFIG, $hostapdconfig);
+    return $hostapdconfig;
+}
+
+function GetHotspotConfig($hostapdconfig) 
+{
+    $arrConfig = array();
+    foreach ($hostapdconfig as $hostapdconfigline) {
+        if (strlen($hostapdconfigline) === 0) {
+            continue;
+        }
+
+        if ($hostapdconfigline[0] != "#") {
+            $arrLine = explode("=", $hostapdconfigline);
+            $arrConfig[$arrLine[0]]=$arrLine[1];
+        }
+    };
+    return $arrConfig;
+}
+
+function RestartHotSpot($arrHostapdConf) 
+{
+    if ($arrHostapdConf['BridgedEnable'] == 1) {
+        exec('sudo /etc/raspap/hostapd/servicestart.sh --interface br0 --seconds 3', $return);
+    } elseif ($arrHostapdConf['WifiAPEnable'] == 1) {
+        exec('sudo /etc/raspap/hostapd/servicestart.sh --interface uap0 --seconds 3', $return);
+    } else {
+        exec('sudo /etc/raspap/hostapd/servicestart.sh --seconds 3', $return);
+    }
+    return $return;
+}
+
+function StopHotspot()
+{
+    exec('sudo /bin/systemctl stop hostapd.service', $return);
+    return $return;
+}
+
+function GetHostAPDParameter()
 {
     $status = new StatusMessages();
     $system = new System();
-    $arrConfig = array();
     $arr80211Standard = [
         'a' => '802.11a - 5 GHz',
         'b' => '802.11b - 2.4 GHz',
@@ -27,35 +69,28 @@ function DisplayHostAPDConfig()
 
     if (!RASPI_MONITOR_ENABLED) {
         if (isset($_POST['SaveHostAPDSettings'])) {
-            SaveHostAPDConfig($arrSecurity, $arrEncType, $arr80211Standard, $interfaces, $status);
+            SaveHostAPDConfig($interfaces, $status);
         }
     }
 
-    $arrHostapdConf = parse_ini_file('/etc/raspap/hostapd.ini');
+    $arrHostapdConf = GetHostApdConfig();
 
     if (!RASPI_MONITOR_ENABLED) {
          if (isset($_POST['StartHotspot']) || isset($_POST['RestartHotspot'])) {
             $status->addMessage('Attempting to start hotspot', 'info');
-            if ($arrHostapdConf['BridgedEnable'] == 1) {
-                exec('sudo /etc/raspap/hostapd/servicestart.sh --interface br0 --seconds 3', $return);
-            } elseif ($arrHostapdConf['WifiAPEnable'] == 1) {
-                exec('sudo /etc/raspap/hostapd/servicestart.sh --interface uap0 --seconds 3', $return);
-            } else {
-                exec('sudo /etc/raspap/hostapd/servicestart.sh --seconds 3', $return);
-            }
+            $return = RestartHotSpot($arrHostapdConf);
             foreach ($return as $line) {
                 $status->addMessage($line, 'info');
             }
         } elseif (isset($_POST['StopHotspot'])) {
             $status->addMessage('Attempting to stop hotspot', 'info');
-            exec('sudo /bin/systemctl stop hostapd.service', $return);
+            $return = StopHotSpot();
             foreach ($return as $line) {
                 $status->addMessage($line, 'info');
             }
         }
     }
 
-    exec('cat '. RASPI_HOSTAPD_CONFIG, $hostapdconfig);
     exec('iwgetid '. RASPI_WIFI_CLIENT_INTERFACE. ' -r', $wifiNetworkID);
     if (!empty($wifiNetworkID[0])) {
         $managedModeEnabled = true;
@@ -63,19 +98,9 @@ function DisplayHostAPDConfig()
     $hostapdstatus = $system->hostapdStatus();
     $serviceStatus = $hostapdstatus[0] == 0 ? "down" : "up";
 
-    foreach ($hostapdconfig as $hostapdconfigline) {
-        if (strlen($hostapdconfigline) === 0) {
-            continue;
-        }
-
-        if ($hostapdconfigline[0] != "#") {
-            $arrLine = explode("=", $hostapdconfigline);
-            $arrConfig[$arrLine[0]]=$arrLine[1];
-        }
-    };
-
-    echo renderTemplate(
-        "hostapd", compact(
+    $arrConfig = GetHotspotConfig($arrHostapdConf);
+   
+    return compact(
             "status",
             "serviceStatus",
             "hostapdstatus",
@@ -87,12 +112,29 @@ function DisplayHostAPDConfig()
             "arrSecurity",
             "arrEncType",
             "arrHostapdConf"
-        )
-    );
+         );
 }
 
-function SaveHostAPDConfig($wpa_array, $enc_types, $modes, $interfaces, $status)
+/**
+ *
+ *
+ */
+function DisplayHostAPDConfig()
 {
+    echo renderTemplate("hostapd", GetHostAPDParameter());
+}
+
+function SaveHostAPDConfig($interfaces, $status)
+{
+    $modes = [
+        'a' => '802.11a - 5 GHz',
+        'b' => '802.11b - 2.4 GHz',
+        'g' => '802.11g - 2.4 GHz',
+        'n' => '802.11n - 2.4 GHz',
+        'ac' => '802.11.ac - 5 GHz'
+    ];
+    $wpa_array = array(1 => 'WPA', 2 => 'WPA2', 3 => 'WPA+WPA2', 'none' => _("None"));
+    $enc_types = array('TKIP' => 'TKIP', 'CCMP' => 'CCMP', 'TKIP CCMP' => 'TKIP+CCMP');
     // It should not be possible to send bad data for these fields so clearly
     // someone is up to something if they fail. Fail silently.
     if (!(array_key_exists($_POST['wpa'], $wpa_array) 

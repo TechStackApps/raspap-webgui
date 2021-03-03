@@ -1,6 +1,7 @@
 <?php
 
 require_once 'functions.php';
+require_once 'defaults.php';
 
 function knownWifiStations(&$networks)
 {
@@ -77,7 +78,7 @@ function nearbyWifiStations(&$networks, $cached = true)
 
         $ssid = trim($arrNetwork[4]);
         // filter SSID string: anything invisible in 7bit ASCII or quotes -> ignore network
-        if (preg_match('[\x00-\x1f\x7f-\xff\'\`\´\"]', $ssid)) {
+        if (preg_match('[\x00-\x1f\x7f-\xff\'\`\ï¿½\"]', $ssid)) {
             continue;
         }
 
@@ -132,4 +133,17 @@ function sortNetworksByRSSI(&$networks)
         $networks[$SSID] = $nets[$SSID];
         $networks[$SSID]['RSSI'] = $RSSI;
     }
+}
+
+function getWifiStations() {
+    $networks = [];
+    $network  = null;
+    $ssid     = null;
+
+    knownWifiStations($networks);
+    nearbyWifiStations($networks, !isset($_REQUEST["refresh"]));
+    connectedWifiStations($networks);
+    sortNetworksByRSSI($networks);
+
+    return $networks;
 }
